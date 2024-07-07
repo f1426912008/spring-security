@@ -185,15 +185,15 @@ Java::
 [source,java,role="primary"]
 ----
 @Bean
-public SecurityFilterChain web(HttpSecurity http) throws Exception {
-    http
-        .authorizeHttpRequests((authorize) -> authorize
-	    .requestMatchers("/endpoint").hasAuthority("USER")
-            .anyRequest().authenticated()
-        )
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+	http
+		.authorizeHttpRequests((authorize) -> authorize
+			.requestMatchers("/endpoint").hasAuthority("USER")
+			.anyRequest().authenticated()
+		)
         // ...
-        
-    return http.build();
+
+	return http.build();
 }
 ----
 
@@ -202,15 +202,14 @@ Kotlin::
 [source,kotlin,role="secondary"]
 ----
 @Bean
-fun web(http: HttpSecurity): SecurityFilterChain {
-    http {
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+	http {
         authorizeHttpRequests {
             authorize("/endpoint", hasAuthority("USER"))
             authorize(anyRequest, authenticated)
         }
-    }
-    
-    return http.build()
+	}
+	return http.build();
 }
 ----
 

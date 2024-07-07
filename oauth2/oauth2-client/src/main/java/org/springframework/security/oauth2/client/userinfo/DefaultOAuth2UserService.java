@@ -95,7 +95,7 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 		ResponseEntity<Map<String, Object>> response = getResponse(userRequest, request);
 		OAuth2AccessToken token = userRequest.getAccessToken();
 		Map<String, Object> attributes = this.attributesConverter.convert(userRequest).convert(response.getBody());
-		Collection<GrantedAuthority> authorities = getAuthorities(token, attributes, userNameAttributeName);
+		Collection<GrantedAuthority> authorities = getAuthorities(token, attributes);
 		return new DefaultOAuth2User(authorities, attributes, userNameAttributeName);
 	}
 
@@ -187,10 +187,9 @@ public class DefaultOAuth2UserService implements OAuth2UserService<OAuth2UserReq
 		return userNameAttributeName;
 	}
 
-	private Collection<GrantedAuthority> getAuthorities(OAuth2AccessToken token, Map<String, Object> attributes,
-			String userNameAttributeName) {
+	private Collection<GrantedAuthority> getAuthorities(OAuth2AccessToken token, Map<String, Object> attributes) {
 		Collection<GrantedAuthority> authorities = new LinkedHashSet<>();
-		authorities.add(new OAuth2UserAuthority(attributes, userNameAttributeName));
+		authorities.add(new OAuth2UserAuthority(attributes));
 		for (String authority : token.getScopes()) {
 			authorities.add(new SimpleGrantedAuthority("SCOPE_" + authority));
 		}

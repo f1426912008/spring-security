@@ -16,10 +16,7 @@
 
 package org.springframework.security.ldap;
 
-import javax.naming.ldap.LdapName;
-
 import org.springframework.ldap.core.DistinguishedName;
-import org.springframework.ldap.support.LdapNameBuilder;
 
 /**
  * This implementation appends a name component to the <tt>userDnBase</tt> context using
@@ -46,19 +43,12 @@ public class DefaultLdapUsernameToDnMapper implements LdapUsernameToDnMapper {
 
 	/**
 	 * Assembles the Distinguished Name that should be used the given username.
-	 * @deprecated Use {@link #buildLdapName(String)} instead
 	 */
 	@Override
-	@Deprecated
 	public DistinguishedName buildDn(String username) {
 		DistinguishedName dn = new DistinguishedName(this.userDnBase);
 		dn.add(this.usernameAttribute, username);
 		return dn;
-	}
-
-	@Override
-	public LdapName buildLdapName(String username) {
-		return LdapNameBuilder.newInstance(this.userDnBase).add(this.usernameAttribute, username).build();
 	}
 
 }

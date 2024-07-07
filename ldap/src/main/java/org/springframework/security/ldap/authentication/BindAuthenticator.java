@@ -16,7 +16,6 @@
 
 package org.springframework.security.ldap.authentication;
 
-import javax.naming.Name;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 
@@ -27,6 +26,7 @@ import org.springframework.core.log.LogMessage;
 import org.springframework.ldap.NamingException;
 import org.springframework.ldap.core.DirContextAdapter;
 import org.springframework.ldap.core.DirContextOperations;
+import org.springframework.ldap.core.DistinguishedName;
 import org.springframework.ldap.core.support.BaseLdapPathContextSource;
 import org.springframework.ldap.support.LdapUtils;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -46,8 +46,6 @@ import org.springframework.util.StringUtils;
 public class BindAuthenticator extends AbstractLdapAuthenticator {
 
 	private static final Log logger = LogFactory.getLog(BindAuthenticator.class);
-
-	private boolean alsoHandleJavaxNamingBindExceptions = false;
 
 	/**
 	 * Create an initialized instance using the {@link BaseLdapPathContextSource}
@@ -104,8 +102,9 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 
 	private DirContextOperations bindWithDn(String userDnStr, String username, String password, Attributes attrs) {
 		BaseLdapPathContextSource ctxSource = (BaseLdapPathContextSource) getContextSource();
-		Name userDn = LdapUtils.newLdapName(userDnStr);
-		Name fullDn = LdapUtils.prepend(userDn, ctxSource.getBaseLdapName());
+		DistinguishedName userDn = new DistinguishedName(userDnStr);
+		DistinguishedName fullDn = new DistinguishedName(userDn);
+		fullDn.prepend(ctxSource.getBaseLdapPath());
 		logger.trace(LogMessage.format("Attempting to bind as %s", fullDn));
 		DirContext ctx = null;
 		try {
@@ -115,7 +114,7 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 			if (attrs == null || attrs.size() == 0) {
 				attrs = ctx.getAttributes(userDn, getUserAttributes());
 			}
-			DirContextAdapter result = new DirContextAdapter(attrs, userDn, ctxSource.getBaseLdapName());
+			DirContextAdapter result = new DirContextAdapter(attrs, userDn, ctxSource.getBaseLdapPath());
 			if (ppolicy != null) {
 				result.setAttributeValue(ppolicy.getID(), ppolicy);
 			}
@@ -126,28 +125,21 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 			// This will be thrown if an invalid user name is used and the method may
 			// be called multiple times to try different names, so we trap the exception
 			// unless a subclass wishes to implement more specialized behaviour.
-			handleIfBindException(userDnStr, username, ex);
+			if ((ex instanceof org.springframework.ldap.AuthenticationException)
+					|| (ex instanceof org.springframework.ldap.OperationNotSupportedException)) {
+				handleBindException(userDnStr, username, ex);
+			}
+			else {
+				throw ex;
+			}
 		}
 		catch (javax.naming.NamingException ex) {
-			if (!this.alsoHandleJavaxNamingBindExceptions) {
-				throw LdapUtils.convertLdapException(ex);
-			}
-			handleIfBindException(userDnStr, username, LdapUtils.convertLdapException(ex));
+			throw LdapUtils.convertLdapException(ex);
 		}
 		finally {
 			LdapUtils.closeContext(ctx);
 		}
 		return null;
-	}
-
-	private void handleIfBindException(String dn, String username, org.springframework.ldap.NamingException naming) {
-		if ((naming instanceof org.springframework.ldap.AuthenticationException)
-				|| (naming instanceof org.springframework.ldap.OperationNotSupportedException)) {
-			handleBindException(dn, username, naming);
-		}
-		else {
-			throw naming;
-		}
 	}
 
 	/**
@@ -157,22 +149,6 @@ public class BindAuthenticator extends AbstractLdapAuthenticator {
 	 */
 	protected void handleBindException(String userDn, String username, Throwable cause) {
 		logger.trace(LogMessage.format("Failed to bind as %s", userDn), cause);
-	}
-
-	/**
-	 * Set whether javax-based bind exceptions should also be delegated to
-	 * {@code #handleBindException} (only Spring-based bind exceptions are handled by
-	 * default)
-	 *
-	 * <p>
-	 * For passivity reasons, defaults to {@code false}, though may change to {@code true}
-	 * in future releases.
-	 * @param alsoHandleJavaxNamingBindExceptions - whether to delegate javax-based bind
-	 * exceptions to #handleBindException
-	 * @since 6.4
-	 */
-	public void setAlsoHandleJavaxNamingBindExceptions(boolean alsoHandleJavaxNamingBindExceptions) {
-		this.alsoHandleJavaxNamingBindExceptions = alsoHandleJavaxNamingBindExceptions;
 	}
 
 }

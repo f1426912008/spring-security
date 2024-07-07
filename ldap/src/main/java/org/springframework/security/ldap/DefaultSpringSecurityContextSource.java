@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.security.ldap;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -83,11 +84,11 @@ public class DefaultSpringSecurityContextSource extends LdapContextSource {
 		setAuthenticationStrategy(new SimpleDirContextAuthenticationStrategy() {
 
 			@Override
-			@SuppressWarnings("unchecked")
+			@SuppressWarnings("rawtypes")
 			public void setupEnvironment(Hashtable env, String dn, String password) {
 				super.setupEnvironment(env, dn, password);
 				// Remove the pooling flag unless authenticating as the 'manager' user.
-				if (!DefaultSpringSecurityContextSource.this.getUserDn().equals(dn)
+				if (!DefaultSpringSecurityContextSource.this.userDn.equals(dn)
 						&& env.containsKey(SUN_LDAP_POOLING_FLAG)) {
 					DefaultSpringSecurityContextSource.this.logger.trace("Removing pooling flag for user " + dn);
 					env.remove(SUN_LDAP_POOLING_FLAG);
@@ -144,7 +145,7 @@ public class DefaultSpringSecurityContextSource extends LdapContextSource {
 		StringBuilder providerUrl = new StringBuilder();
 		for (String serverUrl : urls) {
 			String trimmedUrl = serverUrl.trim();
-			if (trimmedUrl.isEmpty()) {
+			if ("".equals(trimmedUrl)) {
 				continue;
 			}
 			providerUrl.append(trimmedUrl);
@@ -159,11 +160,21 @@ public class DefaultSpringSecurityContextSource extends LdapContextSource {
 	}
 
 	private static String encodeUrl(String url) {
-		return URLEncoder.encode(url, StandardCharsets.UTF_8);
+		try {
+			return URLEncoder.encode(url, StandardCharsets.UTF_8.toString());
+		}
+		catch (UnsupportedEncodingException ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 	private String decodeUrl(String url) {
-		return URLDecoder.decode(url, StandardCharsets.UTF_8);
+		try {
+			return URLDecoder.decode(url, StandardCharsets.UTF_8.toString());
+		}
+		catch (UnsupportedEncodingException ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 }

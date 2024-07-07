@@ -179,8 +179,8 @@ Java::
 [source=java,role="primary"]
 ----
 @Bean
-public HttpSessionEventPublisher sessionEventPublisher() {
-    return new HttpSessionEventPublisher();
+public HttpSessionEventListener sessionEventListener() {
+    return new HttpSessionEventListener();
 }
 ----
 
@@ -189,8 +189,8 @@ Kotlin::
 [source=kotlin,role="secondary"]
 ----
 @Bean
-open fun sessionEventPublisher(): HttpSessionEventPublisher {
-    return HttpSessionEventPublisher()
+open fun sessionEventListener(): HttpSessionEventListener {
+    return HttpSessionEventListener()
 }
 ----
 ======

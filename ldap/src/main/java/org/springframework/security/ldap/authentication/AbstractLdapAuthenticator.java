@@ -25,7 +25,6 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceAware;
 import org.springframework.context.support.MessageSourceAccessor;
-import org.springframework.lang.NonNull;
 import org.springframework.ldap.core.ContextSource;
 import org.springframework.security.core.SpringSecurityMessageSource;
 import org.springframework.security.ldap.search.LdapUserSearch;
@@ -37,8 +36,6 @@ import org.springframework.util.Assert;
  * @author Luke Taylor
  */
 public abstract class AbstractLdapAuthenticator implements LdapAuthenticator, InitializingBean, MessageSourceAware {
-
-	private final Object mutex = new Object();
 
 	private final ContextSource contextSource;
 
@@ -62,7 +59,7 @@ public abstract class AbstractLdapAuthenticator implements LdapAuthenticator, In
 
 	/**
 	 * Create an initialized instance with the {@link ContextSource} provided.
-	 * @param contextSource the {@link ContextSource} to use
+	 * @param contextSource
 	 */
 	public AbstractLdapAuthenticator(ContextSource contextSource) {
 		Assert.notNull(contextSource, "contextSource must not be null.");
@@ -96,7 +93,7 @@ public abstract class AbstractLdapAuthenticator implements LdapAuthenticator, In
 		}
 		List<String> userDns = new ArrayList<>(this.userDnFormat.length);
 		String[] args = new String[] { LdapEncoder.nameEncode(username) };
-		synchronized (this.mutex) {
+		synchronized (this.userDnFormat) {
 			for (MessageFormat formatter : this.userDnFormat) {
 				userDns.add(formatter.format(args));
 			}
@@ -109,14 +106,14 @@ public abstract class AbstractLdapAuthenticator implements LdapAuthenticator, In
 	}
 
 	@Override
-	public void setMessageSource(@NonNull MessageSource messageSource) {
+	public void setMessageSource(MessageSource messageSource) {
 		Assert.notNull(messageSource, "Message source must not be null");
 		this.messages = new MessageSourceAccessor(messageSource);
 	}
 
 	/**
 	 * Sets the user attributes which will be retrieved from the directory.
-	 * @param userAttributes the set of user attributes to retrieve
+	 * @param userAttributes
 	 */
 	public void setUserAttributes(String[] userAttributes) {
 		Assert.notNull(userAttributes, "The userAttributes property cannot be set to null");

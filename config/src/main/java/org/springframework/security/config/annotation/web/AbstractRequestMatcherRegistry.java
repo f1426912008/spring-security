@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
@@ -43,13 +42,11 @@ import org.springframework.security.web.servlet.util.matcher.MvcRequestMatcher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.security.web.util.matcher.DispatcherTypeRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.util.matcher.RegexRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.context.WebApplicationContext;
-import org.springframework.web.servlet.DispatcherServlet;
 import org.springframework.web.servlet.handler.HandlerMappingIntrospector;
 
 /**
@@ -206,22 +203,43 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 		if (servletContext == null) {
 			return requestMatchers(RequestMatchers.antMatchersAsArray(method, patterns));
 		}
+		boolean isProgrammaticApiAvailable = isProgrammaticApiAvailable(servletContext);
 		List<RequestMatcher> matchers = new ArrayList<>();
 		for (String pattern : patterns) {
 			AntPathRequestMatcher ant = new AntPathRequestMatcher(pattern, (method != null) ? method.name() : null);
 			MvcRequestMatcher mvc = createMvcMatchers(method, pattern).get(0);
-			matchers.add(new DeferredRequestMatcher((c) -> resolve(ant, mvc, c), mvc, ant));
+			if (isProgrammaticApiAvailable) {
+				matchers.add(resolve(ant, mvc, servletContext));
+			}
+			else {
+				this.logger
+					.warn("The ServletRegistration API was not available at startup time. This may be due to a misconfiguration; "
+							+ "if you are using AbstractSecurityWebApplicationInitializer, please double-check the recommendations outlined in "
+							+ "https://docs.spring.io/spring-security/reference/servlet/configuration/java.html#abstractsecuritywebapplicationinitializer-with-spring-mvc");
+				matchers.add(new DeferredRequestMatcher((request) -> resolve(ant, mvc, request.getServletContext()),
+						mvc, ant));
+			}
 		}
 		return requestMatchers(matchers.toArray(new RequestMatcher[0]));
+	}
+
+	private static boolean isProgrammaticApiAvailable(ServletContext servletContext) {
+		try {
+			servletContext.getServletRegistrations();
+			return true;
+		}
+		catch (UnsupportedOperationException ex) {
+			return false;
+		}
 	}
 
 	private RequestMatcher resolve(AntPathRequestMatcher ant, MvcRequestMatcher mvc, ServletContext servletContext) {
 		Map<String, ? extends ServletRegistration> registrations = mappableServletRegistrations(servletContext);
 		if (registrations.isEmpty()) {
-			return new DispatcherServletDelegatingRequestMatcher(ant, mvc, new MockMvcRequestMatcher());
+			return ant;
 		}
 		if (!hasDispatcherServlet(registrations)) {
-			return new DispatcherServletDelegatingRequestMatcher(ant, mvc, new MockMvcRequestMatcher());
+			return ant;
 		}
 		ServletRegistration dispatcherServlet = requireOneRootDispatcherServlet(registrations);
 		if (dispatcherServlet != null) {
@@ -456,67 +474,39 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 	static class DeferredRequestMatcher implements RequestMatcher {
 
-		final Function<ServletContext, RequestMatcher> requestMatcherFactory;
+		final Function<HttpServletRequest, RequestMatcher> requestMatcherFactory;
 
 		final AtomicReference<String> description = new AtomicReference<>();
 
-		final Map<ServletContext, RequestMatcher> requestMatchers = new ConcurrentHashMap<>();
+		volatile RequestMatcher requestMatcher;
 
-		DeferredRequestMatcher(Function<ServletContext, RequestMatcher> resolver, RequestMatcher... candidates) {
-			this.requestMatcherFactory = (sc) -> this.requestMatchers.computeIfAbsent(sc, resolver);
+		DeferredRequestMatcher(Function<HttpServletRequest, RequestMatcher> resolver, RequestMatcher... candidates) {
+			this.requestMatcherFactory = (request) -> {
+				if (this.requestMatcher == null) {
+					synchronized (this) {
+						if (this.requestMatcher == null) {
+							this.requestMatcher = resolver.apply(request);
+						}
+					}
+				}
+				return this.requestMatcher;
+			};
 			this.description.set("Deferred " + Arrays.toString(candidates));
-		}
-
-		RequestMatcher requestMatcher(ServletContext servletContext) {
-			return this.requestMatcherFactory.apply(servletContext);
 		}
 
 		@Override
 		public boolean matches(HttpServletRequest request) {
-			return this.requestMatcherFactory.apply(request.getServletContext()).matches(request);
+			return this.requestMatcherFactory.apply(request).matches(request);
 		}
 
 		@Override
 		public MatchResult matcher(HttpServletRequest request) {
-			return this.requestMatcherFactory.apply(request.getServletContext()).matcher(request);
+			return this.requestMatcherFactory.apply(request).matcher(request);
 		}
 
 		@Override
 		public String toString() {
 			return this.description.get();
-		}
-
-	}
-
-	static class MockMvcRequestMatcher implements RequestMatcher {
-
-		@Override
-		public boolean matches(HttpServletRequest request) {
-			return request.getAttribute("org.springframework.test.web.servlet.MockMvc.MVC_RESULT_ATTRIBUTE") != null;
-		}
-
-	}
-
-	static class DispatcherServletRequestMatcher implements RequestMatcher {
-
-		private final ServletContext servletContext;
-
-		DispatcherServletRequestMatcher(ServletContext servletContext) {
-			this.servletContext = servletContext;
-		}
-
-		@Override
-		public boolean matches(HttpServletRequest request) {
-			String name = request.getHttpServletMapping().getServletName();
-			ServletRegistration registration = this.servletContext.getServletRegistration(name);
-			Assert.notNull(name, "Failed to find servlet [" + name + "] in the servlet context");
-			try {
-				Class<?> clazz = Class.forName(registration.getClassName());
-				return DispatcherServlet.class.isAssignableFrom(clazz);
-			}
-			catch (ClassNotFoundException ex) {
-				return false;
-			}
 		}
 
 	}
@@ -527,31 +517,21 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 		private final MvcRequestMatcher mvc;
 
-		private final RequestMatcher dispatcherServlet;
+		private final ServletContext servletContext;
 
 		DispatcherServletDelegatingRequestMatcher(AntPathRequestMatcher ant, MvcRequestMatcher mvc,
 				ServletContext servletContext) {
-			this(ant, mvc, new OrRequestMatcher(new MockMvcRequestMatcher(),
-					new DispatcherServletRequestMatcher(servletContext)));
-		}
-
-		DispatcherServletDelegatingRequestMatcher(AntPathRequestMatcher ant, MvcRequestMatcher mvc,
-				RequestMatcher dispatcherServlet) {
 			this.ant = ant;
 			this.mvc = mvc;
-			this.dispatcherServlet = dispatcherServlet;
-		}
-
-		RequestMatcher requestMatcher(HttpServletRequest request) {
-			if (this.dispatcherServlet.matches(request)) {
-				return this.mvc;
-			}
-			return this.ant;
+			this.servletContext = servletContext;
 		}
 
 		@Override
 		public boolean matches(HttpServletRequest request) {
-			if (this.dispatcherServlet.matches(request)) {
+			String name = request.getHttpServletMapping().getServletName();
+			ServletRegistration registration = this.servletContext.getServletRegistration(name);
+			Assert.notNull(registration, "Failed to find servlet [" + name + "] in the servlet context");
+			if (isDispatcherServlet(registration)) {
 				return this.mvc.matches(request);
 			}
 			return this.ant.matches(request);
@@ -559,10 +539,25 @@ public abstract class AbstractRequestMatcherRegistry<C> {
 
 		@Override
 		public MatchResult matcher(HttpServletRequest request) {
-			if (this.dispatcherServlet.matches(request)) {
+			String name = request.getHttpServletMapping().getServletName();
+			ServletRegistration registration = this.servletContext.getServletRegistration(name);
+			Assert.notNull(registration, "Failed to find servlet [" + name + "] in the servlet context");
+			if (isDispatcherServlet(registration)) {
 				return this.mvc.matcher(request);
 			}
 			return this.ant.matcher(request);
+		}
+
+		private boolean isDispatcherServlet(ServletRegistration registration) {
+			Class<?> dispatcherServlet = ClassUtils
+				.resolveClassName("org.springframework.web.servlet.DispatcherServlet", null);
+			try {
+				Class<?> clazz = Class.forName(registration.getClassName());
+				return dispatcherServlet.isAssignableFrom(clazz);
+			}
+			catch (ClassNotFoundException ex) {
+				return false;
+			}
 		}
 
 		@Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package org.springframework.security.config.web.server
 import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
 import org.springframework.security.web.server.SecurityWebFilterChain
-import org.springframework.security.web.server.context.ServerSecurityContextRepository
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
@@ -66,7 +65,6 @@ operator fun ServerHttpSecurity.invoke(httpConfiguration: ServerHttpSecurityDsl.
 class ServerHttpSecurityDsl(private val http: ServerHttpSecurity, private val init: ServerHttpSecurityDsl.() -> Unit) {
 
     var authenticationManager: ReactiveAuthenticationManager? = null
-    var securityContextRepository: ServerSecurityContextRepository? = null
 
     /**
      * Allows configuring the [ServerHttpSecurity] to only be invoked when matching the
@@ -720,7 +718,6 @@ class ServerHttpSecurityDsl(private val http: ServerHttpSecurity, private val in
     internal fun build(): SecurityWebFilterChain {
         init()
         authenticationManager?.also { this.http.authenticationManager(authenticationManager) }
-        securityContextRepository?.also { this.http.securityContextRepository(securityContextRepository) }
         return this.http.build()
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,13 +27,11 @@ import org.apache.commons.logging.LogFactory;
 
 import org.springframework.core.log.LogMessage;
 import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.util.StringUtils;
 
 /**
  * Standard implementation of {@code SecurityFilterChain}.
  *
  * @author Luke Taylor
- * @author Jinwoo Bae
  * @since 3.1
  */
 public final class DefaultSecurityFilterChain implements SecurityFilterChain {
@@ -50,15 +48,10 @@ public final class DefaultSecurityFilterChain implements SecurityFilterChain {
 
 	public DefaultSecurityFilterChain(RequestMatcher requestMatcher, List<Filter> filters) {
 		if (filters.isEmpty()) {
-			logger.debug(LogMessage.format("Will not secure %s", requestMatcher));
+			logger.info(LogMessage.format("Will not secure %s", requestMatcher));
 		}
 		else {
-			List<String> filterNames = new ArrayList<>();
-			for (Filter filter : filters) {
-				filterNames.add(filter.getClass().getSimpleName());
-			}
-			String names = StringUtils.collectionToDelimitedString(filterNames, ", ");
-			logger.debug(LogMessage.format("Will secure %s with filters: %s", requestMatcher, names));
+			logger.info(LogMessage.format("Will secure %s with %s", requestMatcher, filters));
 		}
 		this.requestMatcher = requestMatcher;
 		this.filters = new ArrayList<>(filters);

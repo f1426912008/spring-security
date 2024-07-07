@@ -52,7 +52,7 @@ public class FilterBasedLdapUserSearch implements LdapUserSearch {
 	/**
 	 * Context name to search in, relative to the base of the configured ContextSource.
 	 */
-	private final String searchBase;
+	private String searchBase = "";
 
 	/**
 	 * The filter expression used in the user search. This is an LDAP search filter (as
@@ -78,9 +78,9 @@ public class FilterBasedLdapUserSearch implements LdapUserSearch {
 		this.contextSource = contextSource;
 		this.searchBase = searchBase;
 		setSearchSubtree(true);
-		if (searchBase.isEmpty()) {
+		if (searchBase.length() == 0) {
 			logger.info(LogMessage.format("Searches will be performed from the root %s since SearchBase not set",
-					contextSource.getBaseLdapName()));
+					contextSource.getBaseLdapPath()));
 		}
 	}
 

@@ -29,19 +29,7 @@ import org.springframework.security.saml2.core.Saml2X509Credential;
  *
  * @author Josh Cummings
  * @since 6.1
- * @deprecated This class no longer is needed in order to transmit the
- * {@link EntityDescriptor} to {@link OpenSamlAssertingPartyDetails}. Instead of doing:
- * <pre>
- * 	if (registration instanceof OpenSamlRelyingPartyRegistration openSamlRegistration) {
- * 	    EntityDescriptor descriptor = openSamlRegistration.getAssertingPartyDetails.getEntityDescriptor();
- * 	}
- * </pre> do instead: <pre>
- * 	if (registration.getAssertingPartyDetails() instanceof openSamlAssertingPartyDetails) {
- * 	    EntityDescriptor descriptor = openSamlAssertingPartyDetails.getEntityDescriptor();
- * 	}
- * </pre>
  */
-@Deprecated
 public final class OpenSamlRelyingPartyRegistration extends RelyingPartyRegistration {
 
 	OpenSamlRelyingPartyRegistration(RelyingPartyRegistration registration) {
@@ -59,7 +47,7 @@ public final class OpenSamlRelyingPartyRegistration extends RelyingPartyRegistra
 	@Override
 	public OpenSamlRelyingPartyRegistration.Builder mutate() {
 		OpenSamlAssertingPartyDetails party = getAssertingPartyDetails();
-		return new Builder(party).registrationId(getRegistrationId())
+		return withAssertingPartyEntityDescriptor(party.getEntityDescriptor()).registrationId(getRegistrationId())
 			.entityId(getEntityId())
 			.signingX509Credentials((c) -> c.addAll(getSigningX509Credentials()))
 			.decryptionX509Credentials((c) -> c.addAll(getDecryptionX509Credentials()))
@@ -69,7 +57,18 @@ public final class OpenSamlRelyingPartyRegistration extends RelyingPartyRegistra
 			.singleLogoutServiceResponseLocation(getSingleLogoutServiceResponseLocation())
 			.singleLogoutServiceBindings((c) -> c.addAll(getSingleLogoutServiceBindings()))
 			.nameIdFormat(getNameIdFormat())
-			.authnRequestsSigned(isAuthnRequestsSigned());
+			.authnRequestsSigned(isAuthnRequestsSigned())
+			.assertingPartyDetails((assertingParty) -> ((OpenSamlAssertingPartyDetails.Builder) assertingParty)
+				.entityId(party.getEntityId())
+				.wantAuthnRequestsSigned(party.getWantAuthnRequestsSigned())
+				.signingAlgorithms((algorithms) -> algorithms.addAll(party.getSigningAlgorithms()))
+				.verificationX509Credentials((c) -> c.addAll(party.getVerificationX509Credentials()))
+				.encryptionX509Credentials((c) -> c.addAll(party.getEncryptionX509Credentials()))
+				.singleSignOnServiceLocation(party.getSingleSignOnServiceLocation())
+				.singleSignOnServiceBinding(party.getSingleSignOnServiceBinding())
+				.singleLogoutServiceLocation(party.getSingleLogoutServiceLocation())
+				.singleLogoutServiceResponseLocation(party.getSingleLogoutServiceResponseLocation())
+				.singleLogoutServiceBinding(party.getSingleLogoutServiceBinding()));
 	}
 
 	/**
@@ -99,10 +98,6 @@ public final class OpenSamlRelyingPartyRegistration extends RelyingPartyRegistra
 
 		private Builder(EntityDescriptor entityDescriptor) {
 			super(entityDescriptor.getEntityID(), OpenSamlAssertingPartyDetails.withEntityDescriptor(entityDescriptor));
-		}
-
-		Builder(OpenSamlAssertingPartyDetails details) {
-			super(details.getEntityDescriptor().getEntityID(), details.mutate());
 		}
 
 		@Override

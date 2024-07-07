@@ -616,7 +616,6 @@ public class OidcUserServiceTests {
 		OAuth2UserAuthority userAuthority = (OAuth2UserAuthority) user.getAuthorities().iterator().next();
 		assertThat(userAuthority.getAuthority()).isEqualTo("OIDC_USER");
 		assertThat(userAuthority.getAttributes()).isEqualTo(user.getAttributes());
-		assertThat(userAuthority.getUserNameAttributeName()).isEqualTo("user-name");
 	}
 
 	private MockResponse jsonResponse(String json) {

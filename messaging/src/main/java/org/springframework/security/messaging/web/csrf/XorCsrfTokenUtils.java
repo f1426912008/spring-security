@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ package org.springframework.security.messaging.web.csrf;
 import java.util.Base64;
 
 import org.springframework.security.crypto.codec.Utf8;
-import org.springframework.util.Assert;
 
 /**
  * Copied from
@@ -44,26 +43,26 @@ final class XorCsrfTokenUtils {
 
 		byte[] tokenBytes = Utf8.encode(token);
 		int tokenSize = tokenBytes.length;
-		if (actualBytes.length != tokenSize * 2) {
+		if (actualBytes.length < tokenSize) {
 			return null;
 		}
 
 		// extract token and random bytes
+		int randomBytesSize = actualBytes.length - tokenSize;
 		byte[] xoredCsrf = new byte[tokenSize];
-		byte[] randomBytes = new byte[tokenSize];
+		byte[] randomBytes = new byte[randomBytesSize];
 
-		System.arraycopy(actualBytes, 0, randomBytes, 0, tokenSize);
-		System.arraycopy(actualBytes, tokenSize, xoredCsrf, 0, tokenSize);
+		System.arraycopy(actualBytes, 0, randomBytes, 0, randomBytesSize);
+		System.arraycopy(actualBytes, randomBytesSize, xoredCsrf, 0, tokenSize);
 
 		byte[] csrfBytes = xorCsrf(randomBytes, xoredCsrf);
 		return Utf8.decode(csrfBytes);
 	}
 
 	private static byte[] xorCsrf(byte[] randomBytes, byte[] csrfBytes) {
-		Assert.isTrue(randomBytes.length == csrfBytes.length, "arrays must be equal length");
-		int len = csrfBytes.length;
+		int len = Math.min(randomBytes.length, csrfBytes.length);
 		byte[] xoredCsrf = new byte[len];
-		System.arraycopy(csrfBytes, 0, xoredCsrf, 0, len);
+		System.arraycopy(csrfBytes, 0, xoredCsrf, 0, csrfBytes.length);
 		for (int i = 0; i < len; i++) {
 			xoredCsrf[i] ^= randomBytes[i];
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,16 +31,16 @@ import org.springframework.util.Assert;
  */
 public class LdapAuthority implements GrantedAuthority {
 
-	private final String dn;
+	private String dn;
 
-	private final String role;
+	private String role;
 
-	private final Map<String, List<String>> attributes;
+	private Map<String, List<String>> attributes;
 
 	/**
 	 * Constructs an LdapAuthority that has a role and a DN but no other attributes
-	 * @param role the principal's role
-	 * @param dn the distinguished name
+	 * @param role
+	 * @param dn
 	 */
 	public LdapAuthority(String role, String dn) {
 		this(role, dn, null);
@@ -48,9 +48,9 @@ public class LdapAuthority implements GrantedAuthority {
 
 	/**
 	 * Constructs an LdapAuthority with the given role, DN and other LDAP attributes
-	 * @param role the principal's role
-	 * @param dn the distinguished name
-	 * @param attributes additional LDAP attributes
+	 * @param role
+	 * @param dn
+	 * @param attributes
 	 */
 	public LdapAuthority(String role, String dn, Map<String, List<String>> attributes) {
 		Assert.notNull(role, "role can not be null");
@@ -70,7 +70,7 @@ public class LdapAuthority implements GrantedAuthority {
 
 	/**
 	 * Returns the DN for this LDAP authority
-	 * @return the distinguished name
+	 * @return
 	 */
 	public String getDn() {
 		return this.dn;
@@ -91,7 +91,7 @@ public class LdapAuthority implements GrantedAuthority {
 
 	/**
 	 * Returns the first attribute value for a specified attribute
-	 * @param name the attribute name
+	 * @param name
 	 * @return the first attribute value for a specified attribute, may be null
 	 */
 	public String getFirstAttributeValue(String name) {

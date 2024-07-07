@@ -18,7 +18,6 @@ package org.springframework.security.web.util.matcher;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.regex.Pattern;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -37,8 +36,6 @@ import org.springframework.util.StringUtils;
  */
 public final class IpAddressMatcher implements RequestMatcher {
 
-	private static Pattern IPV4 = Pattern.compile("\\d{0,3}.\\d{0,3}.\\d{0,3}.\\d{0,3}(/\\d{0,3})?");
-
 	private final int nMaskBits;
 
 	private final InetAddress requiredAddress;
@@ -50,7 +47,7 @@ public final class IpAddressMatcher implements RequestMatcher {
 	 * come.
 	 */
 	public IpAddressMatcher(String ipAddress) {
-		assertNotHostName(ipAddress);
+		assertStartsWithHexa(ipAddress);
 		if (ipAddress.indexOf('/') > 0) {
 			String[] addressAndMask = StringUtils.split(ipAddress, "/");
 			ipAddress = addressAndMask[0];
@@ -71,7 +68,7 @@ public final class IpAddressMatcher implements RequestMatcher {
 	}
 
 	public boolean matches(String address) {
-		assertNotHostName(address);
+		assertStartsWithHexa(address);
 		InetAddress remoteAddress = parseAddress(address);
 		if (!this.requiredAddress.getClass().equals(remoteAddress.getClass())) {
 			return false;
@@ -94,14 +91,11 @@ public final class IpAddressMatcher implements RequestMatcher {
 		return true;
 	}
 
-	private void assertNotHostName(String ipAddress) {
-		boolean isIpv4 = IPV4.matcher(ipAddress).matches();
-		if (isIpv4) {
-			return;
-		}
-		String error = "ipAddress " + ipAddress + " doesn't look like an IP Address. Is it a host name?";
-		Assert.isTrue(ipAddress.charAt(0) == '[' || ipAddress.charAt(0) == ':'
-				|| (Character.digit(ipAddress.charAt(0), 16) != -1 && ipAddress.contains(":")), error);
+	private void assertStartsWithHexa(String ipAddress) {
+		Assert.isTrue(
+				ipAddress.charAt(0) == '[' || ipAddress.charAt(0) == ':'
+						|| Character.digit(ipAddress.charAt(0), 16) != -1,
+				"ipAddress must start with a [, :, or a hexadecimal digit");
 	}
 
 	private InetAddress parseAddress(String address) {

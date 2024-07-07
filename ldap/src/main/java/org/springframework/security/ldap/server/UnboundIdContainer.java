@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2024 the original author or authors.
+ * Copyright 2002-2022 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,6 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.Lifecycle;
 import org.springframework.core.io.Resource;
-import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
 
 /**
@@ -44,7 +43,7 @@ public class UnboundIdContainer
 
 	private InMemoryDirectoryServer directoryServer;
 
-	private final String defaultPartitionSuffix;
+	private String defaultPartitionSuffix;
 
 	private int port = 53389;
 
@@ -52,7 +51,7 @@ public class UnboundIdContainer
 
 	private boolean running;
 
-	private final String ldif;
+	private String ldif;
 
 	public UnboundIdContainer(String defaultPartitionSuffix, String ldif) {
 		this.defaultPartitionSuffix = defaultPartitionSuffix;
@@ -80,7 +79,7 @@ public class UnboundIdContainer
 	}
 
 	@Override
-	public void setApplicationContext(@NonNull ApplicationContext applicationContext) throws BeansException {
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		this.context = applicationContext;
 	}
 
